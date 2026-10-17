@@ -1,0 +1,5 @@
+framework:
+  - terraform
+external-checks-dir:
+  - custom_policies
+skip-download: true

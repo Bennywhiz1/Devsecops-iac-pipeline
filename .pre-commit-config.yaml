@@ -1,0 +1,17 @@
+# Runs the same checks locally before a commit is even created.
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: checkov-hardened-gate
+        name: Checkov - hardened stack must stay clean
+        entry: checkov -d terraform/hardened --config-file .checkov.yaml
+        language: system
+        pass_filenames: false
+        files: ^(terraform/hardened/|custom_policies/|\.checkov\.yaml)
+
+      - id: detect-secrets
+        name: detect-secrets - block committed credentials
+        entry: detect-secrets-hook --baseline .secrets.baseline
+        language: system

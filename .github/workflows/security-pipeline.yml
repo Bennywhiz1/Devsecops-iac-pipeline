@@ -1,0 +1,62 @@
+name: Security Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  iac-gate:
+    name: IaC security gate (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # The hardened stack is the "production" Terraform. Any new finding in
+      # it fails this step, which fails the PR check.
+      - name: Block on findings in the hardened stack
+        run: checkov -d terraform/hardened --config-file .checkov.yaml
+
+      # Proves the gate itself works: scanner catches known-bad Terraform,
+      # every skip is justified, and no secrets are committed.
+      - name: Policy-as-code tests
+        run: pytest -v
+
+  findings-report:
+    name: Publish findings to the Security tab (non-blocking)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install checkov
+        run: pip install -r requirements-dev.txt
+
+      # The insecure stack is expected to fail - that is the point of the
+      # demo - so --soft-fail keeps this job green while still reporting.
+      - name: Scan the intentionally insecure stack
+        run: checkov -d terraform/insecure --config-file .checkov.yaml -o sarif --output-file-path results --soft-fail
+
+      - name: Upload findings to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results/results_sarif.sarif
+          category: checkov-insecure-demo
