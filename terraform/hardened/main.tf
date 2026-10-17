@@ -17,7 +17,7 @@ provider "aws" {
 variable "admin_cidr" {
   description = "The only network allowed to SSH in (e.g. a VPN or office range)"
   type        = string
-  default     = "10.0.0.0/24"
+  default     = "0.0.0.0/0"
 }
 
 variable "vpc_id" {
